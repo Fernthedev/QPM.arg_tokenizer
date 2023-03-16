@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'qpm_arg_tokenizer'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=qpm_arg_tokenizer"],
+        "filter": {
+          "name": "qpm_arg_tokenizer",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
