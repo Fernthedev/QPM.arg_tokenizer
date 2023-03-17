@@ -1,6 +1,6 @@
 use std::vec;
 
-use crate::arg::{self, Expression};
+use crate::arg::Expression;
 
 #[test]
 
@@ -28,7 +28,6 @@ fn replace_range() {
 
     assert_eq!(result, arg_strings.join(" "));
 }
-
 
 #[test]
 fn replace_range_reverse() {
@@ -60,11 +59,36 @@ fn replace_range_end() {
     assert_eq!(result, arg_strings.join(" "));
 }
 
-
 #[test]
 fn replace_all() {
     let text: String = "$0 $1:2 $3:".to_string();
     let arg_strings = vec!["Oh", "my", "god", "it works so well!"];
+
+    let expression = Expression::parse(&text);
+    let result = expression
+        .replace(arg_strings.as_slice())
+        .expect("Failed to replace argument");
+
+    assert_eq!(result, arg_strings.join(" "));
+}
+
+#[test]
+fn replace_negative() {
+    let text: String = "$-3 $-2 $-1".to_string();
+    let arg_strings = vec!["Oh", "my", "god"];
+
+    let expression = Expression::parse(&text);
+    let result = expression
+        .replace(arg_strings.as_slice())
+        .expect("Failed to replace argument");
+
+    assert_eq!(result, arg_strings.join(" "));
+}
+
+#[test]
+fn replace_negative_range() {
+    let text: String = "$-3:-1".to_string();
+    let arg_strings = vec!["Oh", "my", "god"];
 
     let expression = Expression::parse(&text);
     let result = expression
