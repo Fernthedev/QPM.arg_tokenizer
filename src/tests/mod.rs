@@ -97,3 +97,31 @@ fn replace_negative_range() {
 
     assert_eq!(result, arg_strings.join(" "));
 }
+
+#[test]
+
+fn replace_optional_singles() {
+    let text: String = "$0 $1? $2?".to_string();
+    let arg_strings = vec!["Oh"];
+
+    let expression = Expression::parse(&text);
+    let result = expression
+        .replace(arg_strings.as_slice())
+        .expect("Failed to replace argument");
+
+    // two spaces because $1 and $2 have a space between
+    assert_eq!(result, "Oh  ");
+}
+
+#[test]
+fn replace_optional_range() {
+    let text: String = "$0:3?".to_string();
+    let arg_strings = vec!["Oh"];
+
+    let expression = Expression::parse(&text);
+    let result = expression
+        .replace(arg_strings.as_slice())
+        .expect("Failed to replace argument");
+
+    assert_eq!(result, "Oh");
+}

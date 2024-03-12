@@ -1,10 +1,10 @@
-use std::ops::Range;
+use std::{fmt::format, ops::Range};
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub const TOKEN_MATCHER_PATTERN: &str = "\\$(-?\\d+)(:)?(-?\\d+)?"; //"\\$\\d+:?(?:\\d+)?";
+pub const TOKEN_MATCHER_PATTERN: &str = r"\$(-?\d+)(:)?(-?\d+)?(\?)?";
 
 lazy_static! {
     static ref TOKEN_MATCHER_REGEX: Regex = Regex::new(TOKEN_MATCHER_PATTERN).unwrap();
@@ -17,6 +17,7 @@ pub enum ArgumentToken {
 
 pub struct Argument {
     pub range: Range<usize>,
+    pub optional: bool,
     pub token: ArgumentToken,
 }
 
@@ -32,12 +33,13 @@ impl<'a> Expression<'a> {
             args: TOKEN_MATCHER_REGEX
                 .captures_iter(text)
                 .map(|capture| {
+                    // the whole argument
                     let mat = capture.get(0).unwrap();
-                    // let expr = text.get(mat.range()).unwrap();
 
-                    let group1 = capture.get(1).unwrap();
-                    let is_range = capture.get(2).is_some();
-                    let group2 = capture.get(3);
+                    let group1 = capture.get(1).unwrap(); // first number
+                    let is_range = capture.get(2).is_some(); // :
+                    let group2 = capture.get(3); // second number
+                    let optional = capture.get(4).is_some(); // is optional
 
                     let begin: i64 = group1.as_str().parse().unwrap();
                     let token = match is_range {
@@ -52,6 +54,7 @@ impl<'a> Expression<'a> {
                     };
                     Argument {
                         range: mat.range(),
+                        optional,
                         token,
                     }
                 })
@@ -68,14 +71,10 @@ impl<'a> Expression<'a> {
         Ok(copy)
     }
 
-    fn clamp(i: i64, len: usize) -> Result<usize, String> {
+    fn clamp_and_reverse(i: i64, len: usize) -> Result<usize, String> {
         // -1 -> len - 1
         if i < 0 {
             return Ok((len as u64 - i.unsigned_abs()) as usize);
-        }
-
-        if i.unsigned_abs() >= len as u64 {
-            return Err(format!("No argument found at index {i}"));
         }
 
         Ok(i as usize)
@@ -84,11 +83,21 @@ impl<'a> Expression<'a> {
     fn replace_arg(arg: &Argument, text: &mut String, arguments: &[&str]) -> Result<(), String> {
         let len = arguments.len();
 
+        let mut replace_empty = || {
+            text.replace_range(arg.range.clone(), "");
+        };
+
         match arg.token {
             ArgumentToken::Single(start) => {
-                let replacement = arguments.get(Self::clamp(start, len)?).unwrap();
+                let replacement = arguments.get(Self::clamp_and_reverse(start, len)?).cloned();
 
-                text.replace_range(arg.range.clone(), replacement);
+                // Just return
+                if arg.optional && replacement.is_none() {
+                    replace_empty();
+                    return Ok(());
+                }
+
+                text.replace_range(arg.range.clone(), replacement.unwrap());
             }
             ArgumentToken::Joint(start, e) => {
                 if start >= len as i64 {
@@ -96,20 +105,31 @@ impl<'a> Expression<'a> {
                         "No joint argument found at index start {start}, length is {len}",
                     ));
                 }
-                let clamped_start = Self::clamp(start, len)?;
+                let clamped_start = Self::clamp_and_reverse(start, len)?;
 
                 // left to right iter
                 let mut lfr_skipped_iter = arguments.iter().skip(clamped_start);
 
+                match lfr_skipped_iter.len() {
+                    0 if arg.optional => {
+                        replace_empty();
+                        return Ok(());
+                    }
+                    0 => return Err(format!("Start index {start} is greater than length {len}")),
+                    _ => (),
+                };
+
                 let replacement = match e {
+                    // end is defined
                     Some(end) => {
-                        if end > len as i64 {
+                        // elements less than end
+                        if end >= len as i64 && !arg.optional {
                             return Err(format!(
                                 "No joint argument found at index end {end}, length is {len}",
                             ));
                         }
 
-                        let clamped_end = Self::clamp(end, len)?;
+                        let clamped_end = Self::clamp_and_reverse(end, len)?;
 
                         // reverse order
                         // + 1 to include itself
@@ -127,6 +147,7 @@ impl<'a> Expression<'a> {
                             lfr_skipped_iter.take(diff).join(" ")
                         }
                     }
+                    // until end of args
                     None => lfr_skipped_iter.join(" "),
                 };
 
