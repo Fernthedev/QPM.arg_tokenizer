@@ -114,6 +114,20 @@ fn replace_optional_singles() {
 }
 
 #[test]
+fn replace_optional_singles_empty() {
+    let text: String = "$0? $1? $2?".to_string();
+    let arg_strings = vec![];
+
+    let expression = Expression::parse(&text);
+    let result = expression
+        .replace(arg_strings.as_slice())
+        .expect("Failed to replace argument");
+
+    // two spaces because $1 and $2 have a space between
+    assert_eq!(result, "  ");
+}
+
+#[test]
 fn replace_optional_range() {
     let text: String = "$0:3?".to_string();
     let arg_strings = vec!["Oh"];
@@ -124,4 +138,16 @@ fn replace_optional_range() {
         .expect("Failed to replace argument");
 
     assert_eq!(result, "Oh");
+}
+#[test]
+fn replace_optional_range_empty() {
+    let text: String = "$0:3?".to_string();
+    let arg_strings = vec![];
+
+    let expression = Expression::parse(&text);
+    let result = expression
+        .replace(arg_strings.as_slice())
+        .expect("Failed to replace argument");
+
+    assert_eq!(result, "");
 }

@@ -87,6 +87,12 @@ impl<'a> Expression<'a> {
             text.replace_range(arg.range.clone(), "");
         };
 
+        // no args, just empty
+        if len == 0 && arg.optional {
+            replace_empty();
+            return Ok(());
+        }
+
         match arg.token {
             ArgumentToken::Single(start) => {
                 let replacement = arguments.get(Self::clamp_and_reverse(start, len)?).cloned();
@@ -100,6 +106,7 @@ impl<'a> Expression<'a> {
                 text.replace_range(arg.range.clone(), replacement.unwrap());
             }
             ArgumentToken::Joint(start, e) => {
+
                 if start >= len as i64 {
                     return Err(format!(
                         "No joint argument found at index start {start}, length is {len}",
